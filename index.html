@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wolverine PhotoStudio — Portfolio Photoshoot Upload</title>
+  <meta name="description" content="The Wolverine Worldwide creative photo studio. Upload, organize and share your portfolio photoshoots — built for craftsmanship from the ground up." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- ===================== HEADER ===================== -->
+  <header class="site-header" id="top">
+    <div class="container header-inner">
+      <a href="#top" class="brand" aria-label="Wolverine PhotoStudio home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-text">WOLVERINE<span class="brand-sub">PhotoStudio</span></span>
+      </a>
+      <nav class="main-nav" aria-label="Primary">
+        <a href="#studio">Studio</a>
+        <a href="#upload">Upload</a>
+        <a href="#portfolio">Portfolio</a>
+        <a href="#brands">Brands</a>
+      </nav>
+      <a href="#upload" class="btn btn-dark nav-cta">Start a shoot →</a>
+      <button class="nav-toggle" aria-label="Toggle menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ===================== HERO ===================== -->
+  <section class="hero">
+    <div class="container hero-grid">
+      <div class="hero-copy">
+        <p class="eyebrow">The Creative Studio of Wolverine Worldwide</p>
+        <h1>Make.<br />Every Shoot.<br />Better.</h1>
+        <p class="lede">
+          A home for the photography behind our brands. Upload your portfolio
+          photoshoots, organize them by collection, and build a gallery worthy
+          of the craft — from the ground up.
+        </p>
+        <div class="hero-actions">
+          <a href="#upload" class="btn btn-dark">Upload your photoshoot →</a>
+          <a href="#portfolio" class="btn btn-ghost">View the portfolio</a>
+        </div>
+        <dl class="hero-stats">
+          <div><dt id="stat-photos">0</dt><dd>Photos in studio</dd></div>
+          <div><dt id="stat-shoots">0</dt><dd>Photoshoots</dd></div>
+          <div><dt>16</dt><dd>Iconic brands</dd></div>
+        </dl>
+      </div>
+      <div class="hero-visual" aria-hidden="true">
+        <div class="hero-frame hero-frame-1"></div>
+        <div class="hero-frame hero-frame-2"></div>
+        <div class="hero-frame hero-frame-3"></div>
+        <span class="hero-tag">EST. 1883 · BUILT TO LAST</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== STUDIO STRIP ===================== -->
+  <section class="studio" id="studio">
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">The Studio</p>
+        <h2>Everything a photoshoot needs, in one place.</h2>
+      </div>
+      <div class="feature-grid">
+        <article class="feature">
+          <span class="feature-num">01</span>
+          <h3>Drag, drop, done</h3>
+          <p>Drop a whole shoot at once. We handle previews, ordering and metadata so you stay in the flow.</p>
+        </article>
+        <article class="feature">
+          <span class="feature-num">02</span>
+          <h3>Organized by collection</h3>
+          <p>Tag each set to a brand and season. Find the hero shot from any campaign in seconds.</p>
+        </article>
+        <article class="feature">
+          <span class="feature-num">03</span>
+          <h3>Yours, instantly</h3>
+          <p>Your gallery saves locally to this browser — no account, no waiting. Share-ready in a click.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== UPLOAD ===================== -->
+  <section class="upload" id="upload">
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">Upload</p>
+        <h2>Add your portfolio photoshoot</h2>
+        <p class="section-sub">Drop your images below. Set the shoot details and they'll appear in the portfolio gallery instantly.</p>
+      </div>
+
+      <div class="upload-layout">
+        <!-- Dropzone -->
+        <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload images by clicking or dragging files here">
+          <input type="file" id="fileInput" accept="image/*" multiple hidden />
+          <div class="dropzone-inner">
+            <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 16V4m0 0L7 9m5-5l5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4 15v3a2 2 0 002 2h12a2 2 0 002-2v-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+            <p class="dropzone-title">Drag your photoshoot here</p>
+            <p class="dropzone-hint">or <span class="link">browse files</span> — JPG, PNG, WEBP, GIF</p>
+          </div>
+        </div>
+
+        <!-- Shoot details -->
+        <form class="shoot-form" id="shootForm" autocomplete="off">
+          <label class="field">
+            <span>Shoot title</span>
+            <input type="text" id="shootTitle" placeholder="e.g. Merrell Trail — Spring '26" />
+          </label>
+          <label class="field">
+            <span>Brand / collection</span>
+            <select id="shootBrand">
+              <option value="Merrell">Merrell</option>
+              <option value="Saucony">Saucony</option>
+              <option value="Sweaty Betty">Sweaty Betty</option>
+              <option value="Wolverine">Wolverine</option>
+              <option value="Chaco">Chaco</option>
+              <option value="Sperry">Sperry</option>
+              <option value="Other">Other</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Photographer</span>
+            <input type="text" id="shootPhotographer" placeholder="Your name" />
+          </label>
+          <p class="field-note" id="queueNote">No photos staged yet.</p>
+          <button type="submit" class="btn btn-dark btn-block" id="publishBtn" disabled>Publish to portfolio</button>
+        </form>
+      </div>
+
+      <!-- Staging preview -->
+      <div class="staging" id="staging" hidden>
+        <div class="staging-head">
+          <h3>Staged photos <span id="stagingCount">(0)</span></h3>
+          <button class="link-btn" id="clearStaging" type="button">Clear all</button>
+        </div>
+        <div class="thumb-grid" id="stagingGrid"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== PORTFOLIO ===================== -->
+  <section class="portfolio" id="portfolio">
+    <div class="container">
+      <div class="section-head row">
+        <div>
+          <p class="eyebrow">Portfolio</p>
+          <h2>The photoshoot gallery</h2>
+        </div>
+        <div class="portfolio-filters" id="portfolioFilters" role="tablist" aria-label="Filter by brand">
+          <button class="chip is-active" data-filter="all">All</button>
+        </div>
+      </div>
+
+      <div class="gallery" id="gallery"></div>
+
+      <div class="empty-state" id="emptyState">
+        <div class="empty-art" aria-hidden="true"></div>
+        <h3>Your gallery is waiting.</h3>
+        <p>Published photoshoots show up here. Head up to <a href="#upload">Upload</a> to add your first set.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== BRANDS ===================== -->
+  <section class="brands" id="brands">
+    <div class="container">
+      <div class="section-head"><p class="eyebrow">Our House</p><h2>Shooting for the brands you know.</h2></div>
+      <ul class="brand-row">
+        <li>Merrell</li><li>Saucony</li><li>Sweaty Betty</li>
+        <li>Wolverine</li><li>Chaco</li><li>Sperry</li>
+        <li>Hush Puppies</li><li>Bates</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===================== FOOTER ===================== -->
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <span class="brand-text">WOLVERINE<span class="brand-sub">PhotoStudio</span></span>
+        <p>Together we will build a better portfolio from the ground up.</p>
+      </div>
+      <div class="footer-meta">
+        <p>A concept studio site · Not affiliated with Wolverine World Wide, Inc.</p>
+        <p>© <span id="year"></span> · Crafted for the love of the shot.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Lightbox -->
+  <div class="lightbox" id="lightbox" hidden>
+    <button class="lightbox-close" id="lightboxClose" aria-label="Close">×</button>
+    <img id="lightboxImg" alt="" />
+    <p class="lightbox-caption" id="lightboxCaption"></p>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
