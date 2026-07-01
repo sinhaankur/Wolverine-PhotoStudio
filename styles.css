@@ -149,6 +149,16 @@ a { color: inherit; text-decoration: none; }
 .work-quote { font-family: "Fraunces", serif; font-style: italic; font-size: 18px; line-height: 1.4; margin: 0 0 22px; padding-left: 16px; border-left: 2px solid var(--accent); color: var(--ink); }
 .work-quote cite { display: block; font-family: "Inter", sans-serif; font-style: normal; font-size: 12px; color: var(--ink-soft); margin-top: 8px; }
 
+/* ---------- Masonry (home "Photoshoots" section) ---------- */
+.masonry { columns: 4 240px; column-gap: 16px; }
+.masonry-item { break-inside: avoid; margin: 0 0 16px; padding: 0; border: 0; background: none; display: block; width: 100%; position: relative; overflow: hidden; border-radius: 8px; cursor: zoom-in; box-shadow: 0 6px 22px -14px rgba(0,0,0,.3); }
+.masonry-item img { width: 100%; height: auto; display: block; transition: transform .6s var(--ease); }
+.masonry-item:hover img { transform: scale(1.05); }
+.masonry-meta { position: absolute; inset: auto 0 0 0; display: flex; flex-direction: column; gap: 2px; padding: 16px 14px 12px; text-align: left; background: linear-gradient(to top, rgba(0,0,0,.82), transparent); color: #fff; opacity: 0; transform: translateY(8px); transition: opacity .3s, transform .3s var(--ease); }
+.masonry-item:hover .masonry-meta { opacity: 1; transform: none; }
+.mm-brand { font-family: "JetBrains Mono", monospace; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: #ff8a55; }
+.mm-title { font-size: 14px; font-weight: 600; }
+
 /* ---------- CTA band ---------- */
 .cta-band { background: var(--ink); color: var(--paper); padding: 90px 0; text-align: center; }
 .cta-band h2 { font-size: clamp(28px, 4vw, 48px); font-weight: 800; margin: 0 0 26px; }
@@ -208,15 +218,19 @@ a { color: inherit; text-decoration: none; }
 .field-note { font-size: 13px; color: var(--ink-soft); margin: 0; }
 .field-note.ready { color: #2f6b4f; font-weight: 600; }
 
-/* ---------- Footer ---------- */
-.site-footer { background: var(--ink); color: #cfcdc8; padding: 66px 0 44px; }
-.footer-inner { display: grid; grid-template-columns: 1.4fr 1fr 1.2fr; gap: 30px; align-items: start; }
-.footer-brand .brand-text { color: #fff; font-size: 19px; }
-.footer-brand p { max-width: 320px; margin: 16px 0 0; font-size: 14px; }
-.footer-nav { display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
+/* ---------- Footer (centered) ---------- */
+.site-footer { background: var(--ink); color: #cfcdc8; padding: 80px 0 48px; }
+.footer-inner { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 24px; }
+.footer-brand { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.footer-brand .brand-text { color: #fff; font-size: 22px; }
+.footer-brand p { max-width: 340px; margin: 0; font-size: 14px; color: #a7a49e; }
+.footer-nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 26px; font-family: "Archivo", sans-serif; font-weight: 600; font-size: 14px; }
+.footer-nav a { color: #cfcdc8; transition: color .2s; }
 .footer-nav a:hover { color: var(--accent); }
-.footer-meta { text-align: right; font-size: 13px; color: #88857f; }
+.footer-divider { width: 100%; max-width: 460px; height: 1px; background: var(--line-dk); margin: 4px 0; }
+.footer-meta { font-size: 13px; color: #88857f; }
 .footer-meta p { margin: 0 0 6px; }
+.footer-meta p:last-child { margin: 0; }
 
 /* ---------- Lightbox ---------- */
 .lightbox[hidden] { display: none !important; }
@@ -242,8 +256,6 @@ a { color: inherit; text-decoration: none; }
   .work-media { aspect-ratio: 16/10; }
   .upload-grid { grid-template-columns: 1fr; }
   .dropzone { position: static; min-height: 240px; }
-  .footer-inner { grid-template-columns: 1fr; }
-  .footer-meta { text-align: left; }
 }
 @media (max-width: 620px) {
   .container { padding: 0 20px; }

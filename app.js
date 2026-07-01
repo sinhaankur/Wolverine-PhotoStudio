@@ -152,12 +152,29 @@
         <div class="work-list">${feat.map(fullBleedBlock).join("")}</div>
       </section>
 
+      <section class="section container" id="shoots">
+        <div class="section-head row reveal">
+          <div><p class="eyebrow">02 — The frames</p><h2>Photoshoots</h2></div>
+          <a href="#/categories" data-link class="link-arrow">Browse by category →</a>
+        </div>
+        <div class="masonry" id="homeMasonry">${masonryGrid(allPhotos().slice(0, 15))}</div>
+      </section>
+
       <section class="cta-band">
         <div class="container reveal">
           <h2>Your shoot belongs in the archive.</h2>
           <a href="#/upload" data-link class="btn btn-dark">Publish your photoshoot →</a>
         </div>
       </section>`;
+  }
+
+  // Masonry grid of individual frames — each opens the lightbox.
+  function masonryGrid(photos) {
+    return photos.map((p, i) => `
+      <button class="masonry-item reveal" data-idx="${i}" style="--d:${Math.min(i * 0.03, 0.4)}s" aria-label="View ${esc(p.shoot.title)}">
+        <img src="${p.dataUrl}" alt="${esc(p.shoot.title)}" loading="lazy" />
+        <span class="masonry-meta"><span class="mm-brand">${esc(p.shoot.brand)} · ${esc(p.shoot.activity)}</span><span class="mm-title">${esc(p.shoot.title)}</span></span>
+      </button>`).join("");
   }
 
   function viewWork() {
@@ -424,6 +441,14 @@
       block.querySelector(".work-media")?.addEventListener("click", open);
       block.querySelector(".work-open")?.addEventListener("click", open);
     });
+    // home masonry → lightbox over the same slice
+    const masonry = view.querySelector("#homeMasonry");
+    if (masonry) {
+      const list = allPhotos().slice(0, 15);
+      masonry.querySelectorAll(".masonry-item").forEach((btn) =>
+        btn.addEventListener("click", () => openLb(list, +btn.dataset.idx))
+      );
+    }
     if (key === "upload") wireUpload();
     // animate hero counts
     view.querySelectorAll("[data-count]").forEach((el) => animateCount(el, parseInt(el.textContent, 10) || 0));
