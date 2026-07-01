@@ -1,409 +1,490 @@
 /* ============================================================
-   Wolverine PhotoStudio — app logic (cinematic edition)
-   - Drag & drop / browse upload → staging → publish (IndexedDB)
-   - Demo gallery seeds a full, gorgeous grid on first visit
-   - Brand filtering, lightbox with prev/next, scroll reveal
-   No backend. Everything lives in this browser.
+   Wolverine PhotoStudio — app (multi-view studio)
+   Hash router · 5 views · overlay nav · rich upload form ·
+   IndexedDB persistence · lightbox. No backend, no framework.
    ============================================================ */
 (() => {
   "use strict";
-
+  const { ACTIVITIES, TYPES, BRANDS, DEMO_SHOOTS } = window.WPS_DATA;
   const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-  /* ---------- IndexedDB ---------- */
-  const DB_NAME = "wolverine-photostudio";
-  const STORE = "photos";
-  let dbPromise;
-
-  function openDB() {
-    if (dbPromise) return dbPromise;
-    dbPromise = new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, 1);
-      req.onupgradeneeded = () => {
-        const db = req.result;
-        if (!db.objectStoreNames.contains(STORE)) {
-          const s = db.createObjectStore(STORE, { keyPath: "id" });
-          s.createIndex("createdAt", "createdAt");
-        }
-      };
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
-    return dbPromise;
-  }
-  async function dbAll() {
-    const db = await openDB();
-    return new Promise((res, rej) => {
-      const req = db.transaction(STORE, "readonly").objectStore(STORE).getAll();
-      req.onsuccess = () => res(req.result || []);
-      req.onerror = () => rej(req.error);
-    });
-  }
-  async function dbPut(rec) {
-    const db = await openDB();
-    return new Promise((res, rej) => {
-      const tx = db.transaction(STORE, "readwrite");
-      tx.objectStore(STORE).put(rec);
-      tx.oncomplete = () => res();
-      tx.onerror = () => rej(tx.error);
-    });
-  }
-  async function dbDelete(id) {
-    const db = await openDB();
-    return new Promise((res, rej) => {
-      const tx = db.transaction(STORE, "readwrite");
-      tx.objectStore(STORE).delete(id);
-      tx.oncomplete = () => res();
-      tx.onerror = () => rej(tx.error);
-    });
-  }
-
-  /* ---------- DOM refs ---------- */
-  const $ = (s) => document.querySelector(s);
-  const dropzone = $("#dropzone");
-  const fileInput = $("#fileInput");
-  const staging = $("#staging");
-  const stagingGrid = $("#stagingGrid");
-  const stagingCount = $("#stagingCount");
-  const clearStagingBtn = $("#clearStaging");
-  const queueNote = $("#queueNote");
-  const publishBtn = $("#publishBtn");
-  const shootForm = $("#shootForm");
-  const gallery = $("#gallery");
-  const emptyState = $("#emptyState");
-  const filters = $("#portfolioFilters");
-  const lightbox = $("#lightbox");
-  const lightboxImg = $("#lightboxImg");
-  const lightboxCaption = $("#lightboxCaption");
-  const lbCounter = $("#lbCounter");
-
-  let stagedFiles = [];
-
-  /* ---------- Helpers ---------- */
+  const $ = (s, r = document) => r.querySelector(s);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, (c) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  }
-  function readAsDataURL(file) {
-    return new Promise((res, rej) => {
-      const r = new FileReader();
-      r.onload = () => res(r.result);
-      r.onerror = rej;
-      r.readAsDataURL(file);
-    });
-  }
-  function resizeDataUrl(dataUrl, maxDim = 1600, quality = 0.82) {
-    return new Promise((res) => {
-      const img = new Image();
-      img.onload = () => {
-        let { width, height } = img;
-        if (Math.max(width, height) <= maxDim) return res(dataUrl);
-        const scale = maxDim / Math.max(width, height);
-        width = Math.round(width * scale); height = Math.round(height * scale);
-        const c = document.createElement("canvas");
-        c.width = width; c.height = height;
-        c.getContext("2d").drawImage(img, 0, 0, width, height);
-        res(c.toDataURL("image/jpeg", quality));
-      };
-      img.onerror = () => res(dataUrl);
-      img.src = dataUrl;
-    });
-  }
 
+  /* ---------------- IndexedDB (shoots) ---------------- */
+  const DB = "wolverine-photostudio-v2", STORE = "shoots";
+  let dbP;
+  function db() {
+    if (dbP) return dbP;
+    dbP = new Promise((res, rej) => {
+      let settled = false;
+      const done = (fn, v) => { if (!settled) { settled = true; fn(v); } };
+      // Never let an unresponsive IndexedDB (private mode, headless, blocked)
+      // hang boot — time out and fall back to the demo archive.
+      const t = setTimeout(() => done(rej, new Error("indexedDB timeout")), 1500);
+      let r;
+      try { r = indexedDB.open(DB, 1); }
+      catch (e) { clearTimeout(t); return done(rej, e); }
+      r.onupgradeneeded = () => { const d = r.result; if (!d.objectStoreNames.contains(STORE)) d.createObjectStore(STORE, { keyPath: "id" }); };
+      r.onsuccess = () => { clearTimeout(t); done(res, r.result); };
+      r.onerror = () => { clearTimeout(t); done(rej, r.error); };
+      r.onblocked = () => { clearTimeout(t); done(rej, new Error("indexedDB blocked")); };
+    });
+    return dbP;
+  }
+  async function allShoots() { const d = await db(); return new Promise((res, rej) => { const q = d.transaction(STORE, "readonly").objectStore(STORE).getAll(); q.onsuccess = () => res(q.result || []); q.onerror = () => rej(q.error); }); }
+  async function putShoot(rec) { const d = await db(); return new Promise((res, rej) => { const tx = d.transaction(STORE, "readwrite"); tx.objectStore(STORE).put(rec); tx.oncomplete = res; tx.onerror = () => rej(tx.error); }); }
+  async function delShoot(id) { const d = await db(); return new Promise((res, rej) => { const tx = d.transaction(STORE, "readwrite"); tx.objectStore(STORE).delete(id); tx.oncomplete = res; tx.onerror = () => rej(tx.error); }); }
+
+  /* ---------------- State ---------------- */
+  let SHOOTS = [];      // live shoots (real or demo)
+  let usingDemo = true;
+
+  async function loadShoots() {
+    let real = [];
+    try { real = (await allShoots()).sort((a, b) => b.createdAt - a.createdAt); }
+    catch { real = []; } // IndexedDB blocked (private mode etc.) → fall back to demo
+    usingDemo = real.length === 0;
+    SHOOTS = usingDemo ? DEMO_SHOOTS : real;
+  }
+  const allPhotos = () => SHOOTS.flatMap((s) => s.photos.map((p) => ({ ...p, shoot: s })));
+
+  /* ---------------- Helpers ---------------- */
   let toastTimer;
   function toast(msg) {
-    let el = document.querySelector(".toast");
-    if (!el) { el = document.createElement("div"); el.className = "toast"; document.body.appendChild(el); }
-    el.textContent = msg;
-    requestAnimationFrame(() => el.classList.add("show"));
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.classList.remove("show"), 2600);
+    let el = $(".toast"); if (!el) { el = document.createElement("div"); el.className = "toast"; document.body.appendChild(el); }
+    el.textContent = msg; requestAnimationFrame(() => el.classList.add("show"));
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove("show"), 2600);
+  }
+  function readAsDataURL(f) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); }); }
+  function resize(dataUrl, maxDim = 1600, q = 0.82) {
+    return new Promise((res) => { const img = new Image(); img.onload = () => {
+      let { width: w, height: h } = img; if (Math.max(w, h) <= maxDim) return res(dataUrl);
+      const s = maxDim / Math.max(w, h); w = Math.round(w * s); h = Math.round(h * s);
+      const c = document.createElement("canvas"); c.width = w; c.height = h; c.getContext("2d").drawImage(img, 0, 0, w, h);
+      res(c.toDataURL("image/jpeg", q));
+    }; img.onerror = () => res(dataUrl); img.src = dataUrl; });
+  }
+  const brandTag = (s) => `${esc(s.brand)}${s.activity ? " · " + esc(s.activity) : ""}`;
+
+  /* ---------------- Lightbox ---------------- */
+  const lb = $("#lightbox"), lbImg = $("#lightboxImg"), lbCap = $("#lightboxCaption"), lbCount = $("#lbCounter");
+  let lbList = [], lbIdx = 0;
+  function openLb(list, idx) { lbList = list; lbIdx = idx; paintLb(); lb.hidden = false; document.body.style.overflow = "hidden"; $("#lightboxClose").focus(); }
+  function paintLb() { const p = lbList[lbIdx]; if (!p) return; lbImg.src = p.dataUrl; lbImg.alt = p.shoot.title; lbCap.textContent = `${p.shoot.title} — ${p.shoot.brand} · by ${p.shoot.photographer}`; lbCount.textContent = `${lbIdx + 1} / ${lbList.length}`; }
+  function stepLb(d) { if (!lbList.length) return; lbIdx = (lbIdx + d + lbList.length) % lbList.length; paintLb(); }
+  function closeLb() { lb.hidden = true; lbImg.src = ""; document.body.style.overflow = ""; }
+  $("#lightboxClose").addEventListener("click", closeLb);
+  $("#lbPrev").addEventListener("click", () => stepLb(-1));
+  $("#lbNext").addEventListener("click", () => stepLb(1));
+  lb.addEventListener("click", (e) => { if (e.target === lb) closeLb(); });
+  document.addEventListener("keydown", (e) => { if (lb.hidden) return; if (e.key === "Escape") closeLb(); else if (e.key === "ArrowLeft") stepLb(-1); else if (e.key === "ArrowRight") stepLb(1); });
+
+  /* ---------------- Overlay nav ---------------- */
+  const menuBtn = $("#menuBtn"), overlay = $("#navOverlay");
+  function toggleMenu(open) { const o = open ?? !overlay.classList.contains("open"); overlay.classList.toggle("open", o); overlay.setAttribute("aria-hidden", String(!o)); menuBtn.setAttribute("aria-expanded", String(o)); document.body.style.overflow = o ? "hidden" : ""; }
+  menuBtn.addEventListener("click", () => toggleMenu());
+  overlay.addEventListener("click", (e) => { if (e.target.closest("[data-link]")) toggleMenu(false); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && overlay.classList.contains("open")) toggleMenu(false); });
+
+  /* ================= VIEWS ================= */
+  const view = $("#view");
+
+  function fullBleedBlock(s, i) {
+    const cover = s.photos[0];
+    const credits = [s.artDirector && `AD ${s.artDirector}`, `Photo ${s.photographer}`, s.stylist && s.stylist !== "—" && `Styling ${s.stylist}`].filter(Boolean).join(" · ");
+    return `
+      <article class="work-block ${i % 2 ? "flip" : ""} reveal" data-shoot="${s.id}">
+        <button class="work-media" aria-label="View ${esc(s.title)}">
+          <img src="${cover.dataUrl}" alt="${esc(s.title)}" loading="lazy" />
+          <span class="work-count">${s.photos.length} frames</span>
+        </button>
+        <div class="work-info">
+          <p class="eyebrow">${esc(s.brand)} · ${esc(s.type)}</p>
+          <h3>${esc(s.title)}</h3>
+          <p class="work-desc">${esc(s.description || "")}</p>
+          <dl class="work-credits">
+            <div><dt>Activity</dt><dd>${esc(s.activity)}</dd></div>
+            <div><dt>Season</dt><dd>${esc(s.season || "—")}</dd></div>
+            <div><dt>Location</dt><dd>${esc(s.location || "—")}</dd></div>
+          </dl>
+          <p class="work-by">${esc(credits)}</p>
+          ${s.testimonial ? `<blockquote class="work-quote">“${esc(s.testimonial.quote)}” <cite>— ${esc(s.testimonial.by)}</cite></blockquote>` : ""}
+          <button class="link-arrow work-open">View project →</button>
+        </div>
+      </article>`;
   }
 
-  /* ---------- Demo gallery (procedural, gorgeous, never empty) ----------
-     Generates editorial "photos" as SVG gradients so a first visit shows a
-     full gallery. Demo items are flagged `demo:true`, never written to
-     IndexedDB, and removed the moment a real photo is published. */
-  const DEMO_SHOOTS = [
-    { brand: "Merrell", title: "Trail — Spring '26", by: "A. Reyes", palette: ["#2f6b4f", "#163726"], h: 1.28 },
-    { brand: "Saucony", title: "Endorphin — Speed Series", by: "K. Osei", palette: ["#d24e1a", "#7a2a0d"], h: 0.82 },
-    { brand: "Sperry", title: "Coastline Editorial", by: "M. Vance", palette: ["#274b6d", "#0f2437"], h: 1.15 },
-    { brand: "Sweaty Betty", title: "Studio Movement", by: "L. Cho", palette: ["#b23f12", "#d24e1a"], h: 1.0 },
-    { brand: "Chaco", title: "Canyon Field Day", by: "A. Reyes", palette: ["#8a5a2b", "#3a2510"], h: 1.34 },
-    { brand: "Wolverine", title: "Built to Last — Workwear", by: "R. Blake", palette: ["#3a3a3a", "#0d0d0d"], h: 0.9 },
-    { brand: "Hush Puppies", title: "Weekend Neutrals", by: "L. Cho", palette: ["#9a8f7d", "#4a4238"], h: 1.1 },
-    { brand: "Bates", title: "Tactical — Low Light", by: "R. Blake", palette: ["#20262b", "#0a0d0f"], h: 1.22 },
-    { brand: "Merrell", title: "Hydro Moc — Water", by: "M. Vance", palette: ["#2f6b4f", "#0f3a2a"], h: 0.86 },
-    { brand: "Saucony", title: "Track Club Portraits", by: "K. Osei", palette: ["#d24e1a", "#b23f12"], h: 1.18 },
-    { brand: "Sperry", title: "Harbor Golden Hour", by: "M. Vance", palette: ["#c98a3a", "#6d4416"], h: 1.0 },
-    { brand: "Sweaty Betty", title: "Power Yoga Set", by: "L. Cho", palette: ["#7a2a0d", "#d24e1a"], h: 1.3 },
+  function viewHome() {
+    const featured = SHOOTS.filter((s) => s.featured).slice(0, 4);
+    const feat = featured.length ? featured : SHOOTS.slice(0, 4);
+    return `
+      <section class="hero">
+        <div class="hero-bg" aria-hidden="true"></div>
+        <div class="container hero-inner">
+          <p class="eyebrow reveal">The Creative Studio of Wolverine Worldwide</p>
+          <h1 class="reveal">
+            <span class="line"><span>Make.</span></span>
+            <span class="line"><span>Every&nbsp;Shoot.</span></span>
+            <span class="line accent-line"><span>Better.</span></span>
+          </h1>
+          <p class="lede reveal">The photography behind our brands — directed, shot, and archived in one place. Browse the work, or publish your own shoot.</p>
+          <div class="hero-actions reveal">
+            <a href="#/work" data-link class="btn btn-light">View the work →</a>
+            <a href="#/upload" data-link class="btn btn-ghost">Publish a shoot</a>
+          </div>
+          <dl class="hero-stats reveal">
+            <div><dt data-count>${allPhotos().length}</dt><dd>Frames archived</dd></div>
+            <div><dt data-count>${SHOOTS.length}</dt><dd>Photoshoots</dd></div>
+            <div><dt data-count>${BRANDS.length}</dt><dd>Iconic brands</dd></div>
+          </dl>
+        </div>
+        <div class="hero-scroll" aria-hidden="true"><span></span>SCROLL</div>
+      </section>
+
+      <div class="marquee" aria-hidden="true"><div class="marquee-track">${(BRANDS.concat(BRANDS)).map((b) => `<span>${b}</span><span>·</span>`).join("")}</div></div>
+
+      <section class="section container">
+        <div class="section-head row reveal">
+          <div><p class="eyebrow">01 — Selected work</p><h2>Featured photoshoots</h2></div>
+          <a href="#/work" data-link class="link-arrow">All work →</a>
+        </div>
+        <div class="work-list">${feat.map(fullBleedBlock).join("")}</div>
+      </section>
+
+      <section class="cta-band">
+        <div class="container reveal">
+          <h2>Your shoot belongs in the archive.</h2>
+          <a href="#/upload" data-link class="btn btn-dark">Publish your photoshoot →</a>
+        </div>
+      </section>`;
+  }
+
+  function viewWork() {
+    return `
+      <section class="page-head">
+        <div class="container">
+          <p class="eyebrow reveal">02 — The archive</p>
+          <h1 class="reveal">The Work</h1>
+          <p class="page-sub reveal">${SHOOTS.length} photoshoots across ${BRANDS.length} brands. Every frame, full-bleed.</p>
+        </div>
+      </section>
+      <section class="section container">
+        <div class="work-list">${SHOOTS.map(fullBleedBlock).join("")}</div>
+      </section>`;
+  }
+
+  function catCard(label, kind, val, count, sample) {
+    return `
+      <a href="#/categories/${kind}/${encodeURIComponent(val)}" data-link class="cat-card reveal">
+        <span class="cat-swatch" style="background:linear-gradient(150deg,${sample[0]},${sample[1]})"></span>
+        <div class="cat-body"><span class="cat-kind">${kind}</span><h3>${esc(label)}</h3><span class="cat-count">${count} shoot${count !== 1 ? "s" : ""}</span></div>
+        <span class="cat-arrow">→</span>
+      </a>`;
+  }
+
+  function viewCategories(kind, val) {
+    // Detail: a filtered work list
+    if (kind && val) {
+      const d = decodeURIComponent(val);
+      const list = SHOOTS.filter((s) => (kind === "activity" ? s.activity : kind === "brand" ? s.brand : s.type) === d);
+      return `
+        <section class="page-head">
+          <div class="container">
+            <p class="eyebrow reveal"><a href="#/categories" data-link>Categories</a> / ${esc(kind)}</p>
+            <h1 class="reveal">${esc(d)}</h1>
+            <p class="page-sub reveal">${list.length} photoshoot${list.length !== 1 ? "s" : ""} in this ${esc(kind)}.</p>
+          </div>
+        </section>
+        <section class="section container"><div class="work-list">${list.map(fullBleedBlock).join("") || emptyCat()}</div></section>`;
+    }
+    // Index: three lenses
+    const grp = (arr, key) => arr.map((v) => {
+      const shoots = SHOOTS.filter((s) => s[key] === v);
+      const sample = (shoots[0] || SHOOTS[0]).palette;
+      return { v, count: shoots.length, sample };
+    }).filter((x) => x.count > 0);
+    const act = grp(ACTIVITIES, "activity"), brs = grp(BRANDS, "brand"), typ = grp(TYPES, "type");
+    return `
+      <section class="page-head">
+        <div class="container">
+          <p class="eyebrow reveal">03 — Browse</p>
+          <h1 class="reveal">Categories</h1>
+          <p class="page-sub reveal">Three ways into the archive — by what was shot, who it was for, and how it was made.</p>
+        </div>
+      </section>
+      <section class="section container">
+        <div class="section-head reveal"><p class="eyebrow">By activity</p><h2>What we shot</h2></div>
+        <div class="cat-grid">${act.map((x) => catCard(x.v, "activity", x.v, x.count, x.sample)).join("")}</div>
+      </section>
+      <section class="section container">
+        <div class="section-head reveal"><p class="eyebrow">By brand</p><h2>Who it was for</h2></div>
+        <div class="cat-grid">${brs.map((x) => catCard(x.v, "brand", x.v, x.count, x.sample)).join("")}</div>
+      </section>
+      <section class="section container">
+        <div class="section-head reveal"><p class="eyebrow">By type</p><h2>How it was made</h2></div>
+        <div class="cat-grid">${typ.map((x) => catCard(x.v, "type", x.v, x.count, x.sample)).join("")}</div>
+      </section>`;
+  }
+  const emptyCat = () => `<p class="page-sub">Nothing here yet — publish a shoot in this category.</p>`;
+
+  const PROCESS = [
+    ["The Brief", "We start with the story the brand needs to tell — the feeling before the frame."],
+    ["Direction", "Mood, location, casting, and shot list. Every frame is decided before the shutter."],
+    ["The Shoot", "On set: light, motion, and patience. We shoot for the hero and the archive both."],
+    ["The Edit", "Selects, color, and sequence. The edit is where a shoot becomes a story."],
+    ["Deliver", "Tagged, credited, and filed by activity, brand, and type — ready to find in seconds."],
   ];
-
-  function demoPhoto(shoot, i) {
-    const [c1, c2] = shoot.palette;
-    const w = 800, h = Math.round(800 * shoot.h);
-    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}' viewBox='0 0 ${w} ${h}'>
-      <defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>
-        <stop offset='0' stop-color='${c1}'/><stop offset='1' stop-color='${c2}'/></linearGradient>
-        <radialGradient id='v' cx='0.5' cy='0.34' r='0.9'>
-        <stop offset='0' stop-color='rgba(255,255,255,0.16)'/><stop offset='1' stop-color='rgba(0,0,0,0)'/></radialGradient>
-      </defs>
-      <rect width='${w}' height='${h}' fill='url(#g)'/>
-      <rect width='${w}' height='${h}' fill='url(#v)'/>
-      <circle cx='${w * 0.72}' cy='${h * 0.28}' r='${w * 0.05}' fill='rgba(255,255,255,0.10)'/>
-      <text x='40' y='${h - 46}' font-family='Archivo, sans-serif' font-weight='800' font-size='34' fill='rgba(255,255,255,0.92)'>${escapeHtml(shoot.brand)}</text>
-      <text x='40' y='${h - 78}' font-family='Archivo, sans-serif' font-weight='700' font-size='15' letter-spacing='3' fill='rgba(255,255,255,0.55)'>PHOTOSHOOT · 0${(i % 9) + 1}</text>
-    </svg>`;
-    return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
+  function viewStudio() {
+    return `
+      <section class="page-head">
+        <div class="container">
+          <p class="eyebrow reveal">04 — The studio</p>
+          <h1 class="reveal">Built for the craft.</h1>
+          <p class="page-sub reveal">A home for the photography behind Wolverine Worldwide's brands — a working studio and a living archive, in one place.</p>
+        </div>
+      </section>
+      <section class="section container">
+        <div class="studio-intro reveal">
+          <p class="serif-lead">“The best product photography doesn't sell the shoe. It sells the mile you'll walk in it.”</p>
+        </div>
+      </section>
+      <section class="section container">
+        <div class="section-head reveal"><p class="eyebrow">How a shoot happens</p><h2>The process</h2></div>
+        <ol class="process">
+          ${PROCESS.map(([t, d], i) => `<li class="reveal" style="--d:${i * 0.06}s"><span class="process-num">0${i + 1}</span><h3>${t}</h3><p>${d}</p></li>`).join("")}
+        </ol>
+      </section>
+      <section class="section container">
+        <div class="section-head reveal"><p class="eyebrow">Our house</p><h2>The brands we shoot for.</h2></div>
+        <ul class="brand-row">${BRANDS.map((b, i) => `<li class="reveal" style="--d:${i * 0.04}s">${b}</li>`).join("")}</ul>
+      </section>
+      <section class="cta-band"><div class="container reveal"><h2>Have a shoot to add?</h2><a href="#/upload" data-link class="btn btn-dark">Publish to the archive →</a></div></section>`;
   }
 
-  function buildDemoPhotos() {
-    const base = Date.now();
-    return DEMO_SHOOTS.map((s, i) => ({
-      id: "demo-" + i,
-      shootId: "demo-shoot-" + i,
-      title: s.title,
-      brand: s.brand,
-      photographer: s.by,
-      dataUrl: demoPhoto(s, i),
-      order: i,
-      createdAt: base - i * 1000,
-      demo: true,
-    }));
+  /* ---------- Upload view (rich, grouped form) ---------- */
+  let staged = []; // {id,dataUrl,name}
+  function viewUpload() {
+    const opt = (arr) => arr.map((v) => `<option value="${v}">${v}</option>`).join("");
+    return `
+      <section class="page-head">
+        <div class="container">
+          <p class="eyebrow reveal">05 — Contribute</p>
+          <h1 class="reveal">Publish a photoshoot</h1>
+          <p class="page-sub reveal">Drop your images, fill in the studio credits, and your shoot joins the archive — browsable by activity, brand and type. Saved locally to this browser.</p>
+        </div>
+      </section>
+      <section class="section container">
+        <div class="upload-grid">
+          <div class="dropzone reveal" id="dropzone" tabindex="0" role="button" aria-label="Upload images">
+            <input type="file" id="fileInput" accept="image/*" multiple hidden />
+            <div class="dropzone-inner">
+              <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 16V4m0 0L7 9m5-5l5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 15v3a2 2 0 002 2h12a2 2 0 002-2v-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+              <p class="dropzone-title">Drag your photoshoot here</p>
+              <p class="dropzone-hint">or <span class="link">browse files</span> — JPG, PNG, WEBP, GIF</p>
+            </div>
+            <div class="thumb-grid" id="stagingGrid"></div>
+          </div>
+
+          <form class="shoot-form reveal" id="shootForm" autocomplete="off">
+            <fieldset><legend>The shoot</legend>
+              <label class="field"><span>Shoot title *</span><input id="f_title" type="text" placeholder="e.g. Merrell Trail — Spring '26" required /></label>
+              <div class="field-row">
+                <label class="field"><span>Brand</span><select id="f_brand">${opt(BRANDS)}<option>Other</option></select></label>
+                <label class="field"><span>Activity</span><select id="f_activity">${opt(ACTIVITIES)}</select></label>
+              </div>
+              <div class="field-row">
+                <label class="field"><span>Type</span><select id="f_type">${opt(TYPES)}</select></label>
+                <label class="field"><span>Season / Year</span><input id="f_season" type="text" placeholder="Spring 2026" /></label>
+              </div>
+            </fieldset>
+
+            <fieldset><legend>Credits</legend>
+              <div class="field-row">
+                <label class="field"><span>Photographer</span><input id="f_photographer" type="text" placeholder="Your name" /></label>
+                <label class="field"><span>Art director</span><input id="f_ad" type="text" placeholder="—" /></label>
+              </div>
+              <div class="field-row">
+                <label class="field"><span>Stylist</span><input id="f_stylist" type="text" placeholder="—" /></label>
+                <label class="field"><span>Model / talent</span><input id="f_talent" type="text" placeholder="—" /></label>
+              </div>
+              <label class="field"><span>Location</span><input id="f_location" type="text" placeholder="Studio 3, Brooklyn" /></label>
+            </fieldset>
+
+            <fieldset><legend>Details</legend>
+              <label class="field"><span>Description</span><textarea id="f_desc" rows="3" placeholder="A line or two about the shoot…"></textarea></label>
+              <div class="field-row">
+                <label class="field"><span>Tags</span><input id="f_tags" type="text" placeholder="golden hour, motion, coast" /></label>
+                <label class="field"><span>Camera / gear</span><input id="f_gear" type="text" placeholder="Sony A1 · 85mm" /></label>
+              </div>
+            </fieldset>
+
+            <fieldset><legend>Links & meta</legend>
+              <div class="field-row">
+                <label class="field"><span>Client</span><input id="f_client" type="text" placeholder="Brand name" /></label>
+                <label class="field"><span>Date shot</span><input id="f_date" type="text" placeholder="Mar 2026" /></label>
+              </div>
+              <div class="field-row">
+                <label class="field"><span>Instagram</span><input id="f_ig" type="text" placeholder="@handle" /></label>
+                <label class="field"><span>Portfolio link</span><input id="f_link" type="url" placeholder="https://…" /></label>
+              </div>
+              <label class="field"><span>Usage rights</span><input id="f_rights" type="text" placeholder="e.g. Web + social, 1 year" /></label>
+            </fieldset>
+
+            <fieldset><legend>Testimonial <span class="legend-opt">optional</span></legend>
+              <label class="field"><span>Quote</span><textarea id="f_quote" rows="2" placeholder="“They shot the feeling of the mountain.”"></textarea></label>
+              <label class="field"><span>Attribution</span><input id="f_quoteby" type="text" placeholder="Brand Lead, Merrell" /></label>
+            </fieldset>
+
+            <p class="field-note" id="queueNote">No photos staged yet.</p>
+            <button type="submit" class="btn btn-dark btn-block" id="publishBtn" disabled>Publish to the archive</button>
+          </form>
+        </div>
+      </section>`;
   }
 
-  /* ---------- Upload handling ---------- */
-  async function ingestFiles(fileList) {
-    const images = Array.from(fileList).filter((f) => f.type.startsWith("image/"));
-    if (!images.length) { toast("Those weren't images — try JPG, PNG or WEBP."); return; }
-    for (const file of images) {
-      const raw = await readAsDataURL(file);
-      const dataUrl = await resizeDataUrl(raw);
-      stagedFiles.push({ id: uid(), dataUrl, name: file.name });
+  function wireUpload() {
+    staged = [];
+    const dz = $("#dropzone"), fi = $("#fileInput"), grid = $("#stagingGrid"), note = $("#queueNote"), pub = $("#publishBtn"), form = $("#shootForm");
+    async function ingest(files) {
+      const imgs = Array.from(files).filter((f) => f.type.startsWith("image/"));
+      if (!imgs.length) { toast("Those weren't images — try JPG, PNG or WEBP."); return; }
+      for (const f of imgs) { const raw = await readAsDataURL(f); staged.push({ id: uid(), dataUrl: await resize(raw), name: f.name }); }
+      renderStaged();
     }
-    renderStaging();
-  }
+    function renderStaged() {
+      const n = staged.length; pub.disabled = n === 0;
+      note.textContent = n ? `${n} photo${n > 1 ? "s" : ""} ready.` : "No photos staged yet.";
+      note.classList.toggle("ready", n > 0);
+      grid.innerHTML = staged.map((f) => `<div class="thumb"><img src="${f.dataUrl}" alt="${esc(f.name)}"/><button class="thumb-remove" data-id="${f.id}" aria-label="Remove">×</button></div>`).join("");
+      grid.querySelectorAll(".thumb-remove").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); staged = staged.filter((x) => x.id !== b.dataset.id); renderStaged(); }));
+    }
+    dz.addEventListener("click", (e) => { if (!e.target.closest(".thumb")) fi.click(); });
+    dz.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fi.click(); } });
+    fi.addEventListener("change", (e) => { ingest(e.target.files); fi.value = ""; });
+    ["dragenter", "dragover"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add("is-drag"); }));
+    ["dragleave", "dragend", "drop"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove("is-drag"); }));
+    dz.addEventListener("drop", (e) => { if (e.dataTransfer?.files?.length) ingest(e.dataTransfer.files); });
 
-  function renderStaging() {
-    const n = stagedFiles.length;
-    staging.hidden = n === 0;
-    stagingCount.textContent = `(${n})`;
-    publishBtn.disabled = n === 0;
-    if (n === 0) { queueNote.textContent = "No photos staged yet."; queueNote.classList.remove("ready"); }
-    else { queueNote.textContent = `${n} photo${n > 1 ? "s" : ""} ready to publish.`; queueNote.classList.add("ready"); }
-
-    stagingGrid.innerHTML = "";
-    stagedFiles.forEach((f) => {
-      const cell = document.createElement("div");
-      cell.className = "thumb";
-      cell.innerHTML = `<img src="${f.dataUrl}" alt="${escapeHtml(f.name)}" />
-        <button class="thumb-remove" aria-label="Remove ${escapeHtml(f.name)}">×</button>`;
-      cell.querySelector(".thumb-remove").addEventListener("click", () => {
-        stagedFiles = stagedFiles.filter((x) => x.id !== f.id);
-        renderStaging();
-      });
-      stagingGrid.appendChild(cell);
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!staged.length) { toast("Add at least one photo first."); return; }
+      const val = (id) => $("#" + id)?.value.trim();
+      const quote = val("f_quote");
+      const shoot = {
+        id: uid(), createdAt: Date.now(),
+        title: val("f_title") || "Untitled photoshoot",
+        brand: val("f_brand") || "Other", activity: $("#f_activity").value, type: $("#f_type").value, season: val("f_season"),
+        photographer: val("f_photographer") || "Studio", artDirector: val("f_ad"), stylist: val("f_stylist") || "—", talent: val("f_talent"), location: val("f_location"),
+        description: val("f_desc"), tags: val("f_tags"), gear: val("f_gear"),
+        client: val("f_client"), date: val("f_date"), instagram: val("f_ig"), link: val("f_link"), rights: val("f_rights"),
+        testimonial: quote ? { quote, by: val("f_quoteby") || "Client" } : null,
+        palette: ["#3a3a3a", "#0d0d0d"],
+        photos: staged.map((f, i) => ({ id: f.id + "-" + i, dataUrl: f.dataUrl })),
+        featured: false,
+      };
+      pub.disabled = true; pub.textContent = "Publishing…";
+      await putShoot(shoot);
+      await loadShoots();
+      toast(`Published “${shoot.title}” — ${staged.length} frame${staged.length > 1 ? "s" : ""}.`);
+      staged = [];
+      location.hash = "#/work";
     });
+    renderStaged();
   }
 
-  /* ---------- Dropzone events ---------- */
-  dropzone.addEventListener("click", () => fileInput.click());
-  dropzone.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); }
-  });
-  fileInput.addEventListener("change", (e) => { ingestFiles(e.target.files); fileInput.value = ""; });
-  ["dragenter", "dragover"].forEach((ev) =>
-    dropzone.addEventListener(ev, (e) => { e.preventDefault(); dropzone.classList.add("is-drag"); }));
-  ["dragleave", "dragend", "drop"].forEach((ev) =>
-    dropzone.addEventListener(ev, (e) => { e.preventDefault(); dropzone.classList.remove("is-drag"); }));
-  dropzone.addEventListener("drop", (e) => { if (e.dataTransfer?.files?.length) ingestFiles(e.dataTransfer.files); });
-  window.addEventListener("dragover", (e) => e.preventDefault());
-  window.addEventListener("drop", (e) => e.preventDefault());
-  clearStagingBtn.addEventListener("click", () => { stagedFiles = []; renderStaging(); });
+  /* ---------------- Router ---------------- */
+  const ROUTES = { "": viewHome, "work": viewWork, "categories": viewCategories, "studio": viewStudio, "upload": viewUpload };
 
-  /* ---------- Publish ---------- */
-  shootForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    if (!stagedFiles.length) return;
-    const title = $("#shootTitle").value.trim() || "Untitled photoshoot";
-    const brand = $("#shootBrand").value;
-    const photographer = $("#shootPhotographer").value.trim() || "Studio";
-    const createdAt = Date.now();
-    const shootId = uid();
+  function render() {
+    const raw = location.hash.replace(/^#\/?/, "");
+    const parts = raw.split("/").filter(Boolean); // e.g. ["categories","activity","Trail"]
+    const key = parts[0] || "";
+    const fn = ROUTES[key] || (() => `<section class="page-head"><div class="container"><h1>Not found</h1><p class="page-sub"><a href="#/" data-link>Back home</a></p></div></section>`);
 
-    publishBtn.disabled = true;
-    publishBtn.textContent = "Publishing…";
-
-    for (let i = 0; i < stagedFiles.length; i++) {
-      await dbPut({ id: stagedFiles[i].id, shootId, title, brand, photographer, dataUrl: stagedFiles[i].dataUrl, order: i, createdAt });
-    }
-
-    const count = stagedFiles.length;
-    stagedFiles = [];
-    renderStaging();
-    shootForm.reset();
-    publishBtn.textContent = "Publish to portfolio";
-
-    await refreshGallery();
-    toast(`Published ${count} photo${count > 1 ? "s" : ""} to “${title}”.`);
-    $("#portfolio").scrollIntoView({ behavior: prefersReduced ? "auto" : "smooth" });
-  });
-
-  /* ---------- Gallery + filters ---------- */
-  let allPhotos = [];
-  let viewList = [];
-  let activeFilter = "all";
-  let showingDemo = false;
-
-  async function refreshGallery() {
-    const real = (await dbAll()).sort((a, b) => b.createdAt - a.createdAt || a.order - b.order);
-    showingDemo = real.length === 0;
-    allPhotos = showingDemo ? buildDemoPhotos() : real;
-    renderFilters();
-    renderGallery();
-    updateStats(real.length, new Set(real.map((p) => p.shootId)).size);
-  }
-
-  function renderFilters() {
-    const brands = [...new Set(allPhotos.map((p) => p.brand))].sort();
-    filters.innerHTML = "";
-    const make = (label, val) => {
-      const b = document.createElement("button");
-      b.className = "chip" + (activeFilter === val ? " is-active" : "");
-      b.dataset.filter = val;
-      b.textContent = label;
-      b.addEventListener("click", () => { activeFilter = val; renderFilters(); renderGallery(); });
-      return b;
+    view.classList.add("leaving");
+    const paint = () => {
+      view.innerHTML = key === "categories" ? viewCategories(parts[1], parts[2]) : fn();
+      view.classList.remove("leaving");
+      window.scrollTo({ top: 0, behavior: "auto" });
+      wireView(key);
+      initReveal();
+      setActiveNav(key);
     };
-    filters.appendChild(make("All", "all"));
-    brands.forEach((br) => filters.appendChild(make(br, br)));
+    if (prefersReduced) paint(); else setTimeout(paint, 180);
   }
 
-  function renderGallery() {
-    viewList = activeFilter === "all" ? allPhotos : allPhotos.filter((p) => p.brand === activeFilter);
-    emptyState.hidden = allPhotos.length > 0;
-    gallery.innerHTML = "";
+  function wireView(key) {
+    // work-block interactions (open lightbox on media or "View project")
+    view.querySelectorAll(".work-block").forEach((block) => {
+      const s = SHOOTS.find((x) => x.id === block.dataset.shoot);
+      if (!s) return;
+      const list = s.photos.map((p) => ({ ...p, shoot: s }));
+      const open = () => openLb(list, 0);
+      block.querySelector(".work-media")?.addEventListener("click", open);
+      block.querySelector(".work-open")?.addEventListener("click", open);
+    });
+    if (key === "upload") wireUpload();
+    // animate hero counts
+    view.querySelectorAll("[data-count]").forEach((el) => animateCount(el, parseInt(el.textContent, 10) || 0));
+  }
 
-    viewList.forEach((p, idx) => {
-      const card = document.createElement("figure");
-      card.className = "gallery-card";
-      if (!prefersReduced) card.style.animationDelay = Math.min(idx * 0.04, 0.5) + "s";
-      card.innerHTML = `
-        ${p.demo ? '<span class="card-badge">Demo</span>' : '<button class="card-del" aria-label="Delete photo">×</button>'}
-        <img src="${p.dataUrl}" alt="${escapeHtml(p.title)}" loading="lazy" />
-        <figcaption class="card-meta">
-          <div class="m-brand">${escapeHtml(p.brand)}</div>
-          <div class="m-title">${escapeHtml(p.title)}</div>
-          <div class="m-by">by ${escapeHtml(p.photographer)}</div>
-        </figcaption>`;
-      card.querySelector("img").addEventListener("click", () => openLightbox(idx));
-      const del = card.querySelector(".card-del");
-      del?.addEventListener("click", async (e) => {
-        e.stopPropagation();
-        await dbDelete(p.id);
-        await refreshGallery();
-        toast("Photo removed.");
-      });
-      gallery.appendChild(card);
+  function setActiveNav(key) {
+    overlay.querySelectorAll(".nav-links a").forEach((a) => {
+      const h = a.getAttribute("href").replace(/^#\/?/, "");
+      a.classList.toggle("active", h === key || (h === "" && key === ""));
     });
   }
 
-  function updateStats(photoCount, shootCount) {
-    animateCount($("#stat-photos"), photoCount);
-    animateCount($("#stat-shoots"), shootCount);
-  }
   function animateCount(el, target) {
-    if (!el) return;
+    target = Math.max(0, target | 0);
     if (prefersReduced) { el.textContent = target; return; }
-    const start = parseInt(el.textContent, 10) || 0;
-    const dur = 700, t0 = performance.now();
+    const t0 = performance.now(), dur = 800;
     (function step(now) {
       const p = Math.min((now - t0) / dur, 1);
-      const eased = 1 - Math.pow(1 - p, 3);
-      el.textContent = Math.round(start + (target - start) * eased);
+      el.textContent = Math.max(0, Math.round(target * (1 - Math.pow(1 - p, 3))));
       if (p < 1) requestAnimationFrame(step);
     })(t0);
   }
 
-  /* ---------- Lightbox with prev/next ---------- */
-  let lbIndex = 0;
-  function openLightbox(idx) {
-    lbIndex = idx;
-    paintLightbox();
-    lightbox.hidden = false;
-    document.body.style.overflow = "hidden";
-    $("#lightboxClose").focus();
-  }
-  function paintLightbox() {
-    const p = viewList[lbIndex];
-    if (!p) return;
-    lightboxImg.src = p.dataUrl;
-    lightboxImg.alt = p.title;
-    lightboxCaption.textContent = `${p.title} — ${p.brand} · by ${p.photographer}`;
-    lbCounter.textContent = `${lbIndex + 1} / ${viewList.length}`;
-  }
-  function lbStep(dir) {
-    if (!viewList.length) return;
-    lbIndex = (lbIndex + dir + viewList.length) % viewList.length;
-    paintLightbox();
-  }
-  function closeLightbox() {
-    lightbox.hidden = true;
-    lightboxImg.src = "";
-    document.body.style.overflow = "";
-  }
-  $("#lightboxClose").addEventListener("click", closeLightbox);
-  $("#lbPrev").addEventListener("click", () => lbStep(-1));
-  $("#lbNext").addEventListener("click", () => lbStep(1));
-  lightbox.addEventListener("click", (e) => { if (e.target === lightbox) closeLightbox(); });
-  document.addEventListener("keydown", (e) => {
-    if (lightbox.hidden) return;
-    if (e.key === "Escape") closeLightbox();
-    else if (e.key === "ArrowLeft") lbStep(-1);
-    else if (e.key === "ArrowRight") lbStep(1);
-  });
-
-  /* ---------- Mobile nav ---------- */
-  const navToggle = document.querySelector(".nav-toggle");
-  const nav = document.querySelector(".main-nav");
-  navToggle?.addEventListener("click", () => {
-    const open = nav.classList.toggle("open");
-    navToggle.setAttribute("aria-expanded", String(open));
-  });
-  nav?.querySelectorAll("a").forEach((a) => a.addEventListener("click", () => nav.classList.remove("open")));
-
-  /* ---------- Scroll reveal + header state ---------- */
   function initReveal() {
-    const items = document.querySelectorAll(".reveal");
-    if (prefersReduced || !("IntersectionObserver" in window)) {
-      items.forEach((el) => el.classList.add("in"));
-      return;
-    }
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach((en) => { if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); } });
-    }, { threshold: 0.12, rootMargin: "0px 0px -8% 0px" });
+    const items = view.querySelectorAll(".reveal");
+    if (prefersReduced || !("IntersectionObserver" in window)) { items.forEach((el) => el.classList.add("in")); return; }
+    const io = new IntersectionObserver((ents) => ents.forEach((en) => { if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); } }), { threshold: 0.1, rootMargin: "0px 0px -6% 0px" });
     items.forEach((el) => io.observe(el));
   }
-  const header = document.querySelector(".site-header");
-  window.addEventListener("scroll", () => {
-    header.classList.toggle("scrolled", window.scrollY > 8);
-  }, { passive: true });
 
-  /* ---------- Loader ---------- */
+  /* ---------------- Header scroll + loader ---------------- */
+  const header = $(".site-header");
+  window.addEventListener("scroll", () => header.classList.toggle("scrolled", window.scrollY > 8), { passive: true });
   function dismissLoader() {
-    const loader = document.getElementById("loader");
-    if (!loader) return;
-    const minWait = prefersReduced ? 0 : 1200;
-    setTimeout(() => loader.classList.add("done"), minWait);
-    setTimeout(() => loader.remove(), minWait + 900);
+    const l = $("#loader"); if (!l) return;
+    // Show the full loader only once per session; on later loads dismiss fast.
+    let seen = false;
+    try { seen = sessionStorage.getItem("wps-loaded") === "1"; sessionStorage.setItem("wps-loaded", "1"); } catch {}
+    const w = prefersReduced || seen ? 0 : 1200;
+    setTimeout(() => l.classList.add("done"), w);
+    setTimeout(() => l.remove(), w + (prefersReduced || seen ? 100 : 900));
   }
 
-  /* ---------- Init ---------- */
-  document.getElementById("year").textContent = new Date().getFullYear();
-  initReveal();
-  refreshGallery();
-  window.addEventListener("load", dismissLoader);
-  // Fallback in case load already fired.
-  if (document.readyState === "complete") dismissLoader();
+  /* ---------------- Boot ---------------- */
+  window.addEventListener("hashchange", render);
+  (async function boot() {
+    try {
+      $("#year").textContent = new Date().getFullYear();
+      await loadShoots();
+      if (!location.hash) location.hash = "#/";
+      render();
+    } catch (err) {
+      // Never leave the user on a blank page under the loader.
+      console.error("boot failed:", err);
+      view.innerHTML = `<section class="page-head"><div class="container"><h1>Something went wrong.</h1><p class="page-sub">Try reloading.</p></div></section>`;
+    } finally {
+      // Dismiss the loader no matter what — on load, or immediately if already loaded.
+      if (document.readyState === "complete") dismissLoader();
+      else window.addEventListener("load", dismissLoader, { once: true });
+      // Hard safety: never let the loader trap the page.
+      setTimeout(dismissLoader, 2500);
+    }
+  })();
 })();

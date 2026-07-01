@@ -4,231 +4,82 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Wolverine PhotoStudio — The Creative Studio</title>
-  <meta name="description" content="The Wolverine Worldwide creative photo studio. Upload, organize and share portfolio photoshoots — a cinematic, local-first gallery built for the craft." />
+  <meta name="description" content="The Wolverine Worldwide creative photo studio. Cinematic photoshoot portfolio — browse by activity, brand and type, and publish your own shoots. Local-first, no account." />
   <meta name="theme-color" content="#0e0e0e" />
-  <meta name="color-scheme" content="light" />
+  <meta name="color-scheme" content="dark light" />
 
-  <!-- Open Graph / social -->
   <meta property="og:type" content="website" />
   <meta property="og:title" content="Wolverine PhotoStudio — The Creative Studio" />
-  <meta property="og:description" content="A cinematic, local-first photoshoot gallery. Drag, drop, publish — built for the craft." />
+  <meta property="og:description" content="A cinematic photoshoot portfolio. Browse by activity, brand and type. Local-first, no account." />
   <meta property="og:image" content="og-image.svg" />
   <meta property="og:url" content="https://sinhaankur.github.io/Wolverine-PhotoStudio/" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Wolverine PhotoStudio" />
-  <meta name="twitter:description" content="A cinematic, local-first photoshoot gallery." />
   <meta name="twitter:image" content="og-image.svg" />
 
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=Fraunces:opsz,ital,wght@9..144,0,300;9..144,1,400;9..144,1,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <!-- Cinematic loader — dissolves on load -->
+  <!-- Cinematic loader -->
   <div class="loader" id="loader" aria-hidden="true">
     <div class="loader-mark"></div>
     <div class="loader-bar"><span></span></div>
     <p class="loader-label">WOLVERINE&nbsp;PHOTOSTUDIO</p>
   </div>
 
-  <!-- ===================== HEADER ===================== -->
+  <!-- ============ Minimal floating header ============ -->
   <header class="site-header" id="top">
-    <div class="container header-inner">
-      <a href="#top" class="brand" aria-label="Wolverine PhotoStudio home">
-        <span class="brand-mark" aria-hidden="true"></span>
-        <span class="brand-text">WOLVERINE<span class="brand-sub">PhotoStudio</span></span>
-      </a>
-      <nav class="main-nav" aria-label="Primary">
-        <a href="#studio">Studio</a>
-        <a href="#upload">Upload</a>
-        <a href="#portfolio">Portfolio</a>
-        <a href="#brands">Brands</a>
-      </nav>
-      <a href="#upload" class="btn btn-dark nav-cta">Start a shoot →</a>
-      <button class="nav-toggle" aria-label="Toggle menu" aria-expanded="false">
-        <span></span><span></span><span></span>
-      </button>
-    </div>
+    <a href="#/" class="brand" data-link aria-label="Wolverine PhotoStudio home">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-text">WOLVERINE<span class="brand-sub">PhotoStudio</span></span>
+    </a>
+    <button class="menu-btn" id="menuBtn" aria-label="Open menu" aria-expanded="false">
+      <span>Menu</span><i aria-hidden="true"></i>
+    </button>
   </header>
 
-  <!-- ===================== HERO ===================== -->
-  <section class="hero">
-    <div class="hero-bg" aria-hidden="true"></div>
-    <div class="container hero-grid">
-      <div class="hero-copy">
-        <p class="eyebrow reveal">The Creative Studio of Wolverine Worldwide</p>
-        <h1 class="reveal">
-          <span class="line"><span>Make.</span></span>
-          <span class="line"><span>Every&nbsp;Shoot.</span></span>
-          <span class="line accent-line"><span>Better.</span></span>
-        </h1>
-        <p class="lede reveal">
-          A home for the photography behind our brands. Upload your portfolio
-          photoshoots, organize them by collection, and build a gallery worthy
-          of the craft — from the ground up.
-        </p>
-        <div class="hero-actions reveal">
-          <a href="#upload" class="btn btn-dark">Upload your photoshoot →</a>
-          <a href="#portfolio" class="btn btn-ghost">View the portfolio</a>
-        </div>
-        <dl class="hero-stats reveal">
-          <div><dt id="stat-photos" data-count>0</dt><dd>Photos in studio</dd></div>
-          <div><dt id="stat-shoots" data-count>0</dt><dd>Photoshoots</dd></div>
-          <div><dt data-count>16</dt><dd>Iconic brands</dd></div>
-        </dl>
-      </div>
-      <div class="hero-visual" aria-hidden="true">
-        <div class="hero-frame hero-frame-1"><span class="frame-tag">MERRELL · TRAIL</span></div>
-        <div class="hero-frame hero-frame-2"><span class="frame-tag">SAUCONY · RUN</span></div>
-        <div class="hero-frame hero-frame-3"><span class="frame-tag">SPERRY · COAST</span></div>
-        <span class="hero-tag">EST. 1883 · BUILT TO LAST</span>
-      </div>
-    </div>
-    <div class="hero-scroll" aria-hidden="true"><span></span>SCROLL</div>
-  </section>
-
-  <!-- ===================== MARQUEE ===================== -->
-  <div class="marquee" aria-hidden="true">
-    <div class="marquee-track">
-      <span>MERRELL</span><span>·</span><span>SAUCONY</span><span>·</span><span>SWEATY BETTY</span><span>·</span><span>WOLVERINE</span><span>·</span><span>CHACO</span><span>·</span><span>SPERRY</span><span>·</span><span>HUSH PUPPIES</span><span>·</span><span>BATES</span><span>·</span>
-      <span>MERRELL</span><span>·</span><span>SAUCONY</span><span>·</span><span>SWEATY BETTY</span><span>·</span><span>WOLVERINE</span><span>·</span><span>CHACO</span><span>·</span><span>SPERRY</span><span>·</span><span>HUSH PUPPIES</span><span>·</span><span>BATES</span><span>·</span>
-    </div>
-  </div>
-
-  <!-- ===================== STUDIO STRIP ===================== -->
-  <section class="studio" id="studio">
-    <div class="container">
-      <div class="section-head reveal">
-        <p class="eyebrow">The Studio</p>
-        <h2>Everything a photoshoot needs, in one place.</h2>
-      </div>
-      <div class="feature-grid">
-        <article class="feature reveal">
-          <span class="feature-num">01</span>
-          <h3>Drag, drop, done</h3>
-          <p>Drop a whole shoot at once. We handle previews, ordering and metadata so you stay in the flow.</p>
-        </article>
-        <article class="feature reveal" style="--d:.08s">
-          <span class="feature-num">02</span>
-          <h3>Organized by collection</h3>
-          <p>Tag each set to a brand and season. Find the hero shot from any campaign in seconds.</p>
-        </article>
-        <article class="feature reveal" style="--d:.16s">
-          <span class="feature-num">03</span>
-          <h3>Yours, instantly</h3>
-          <p>Your gallery saves locally to this browser — no account, no waiting. Share-ready in a click.</p>
-        </article>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===================== UPLOAD ===================== -->
-  <section class="upload" id="upload">
-    <div class="container">
-      <div class="section-head reveal">
-        <p class="eyebrow">Upload</p>
-        <h2>Add your portfolio photoshoot</h2>
-        <p class="section-sub">Drop your images below. Set the shoot details and they'll appear in the portfolio gallery instantly.</p>
-      </div>
-
-      <div class="upload-layout">
-        <!-- Dropzone -->
-        <div class="dropzone reveal" id="dropzone" tabindex="0" role="button" aria-label="Upload images by clicking or dragging files here">
-          <input type="file" id="fileInput" accept="image/*" multiple hidden />
-          <div class="dropzone-inner">
-            <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M12 16V4m0 0L7 9m5-5l5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M4 15v3a2 2 0 002 2h12a2 2 0 002-2v-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-            </svg>
-            <p class="dropzone-title">Drag your photoshoot here</p>
-            <p class="dropzone-hint">or <span class="link">browse files</span> — JPG, PNG, WEBP, GIF</p>
-          </div>
-        </div>
-
-        <!-- Shoot details -->
-        <form class="shoot-form reveal" id="shootForm" autocomplete="off" style="--d:.08s">
-          <label class="field">
-            <span>Shoot title</span>
-            <input type="text" id="shootTitle" placeholder="e.g. Merrell Trail — Spring '26" />
-          </label>
-          <label class="field">
-            <span>Brand / collection</span>
-            <select id="shootBrand">
-              <option value="Merrell">Merrell</option>
-              <option value="Saucony">Saucony</option>
-              <option value="Sweaty Betty">Sweaty Betty</option>
-              <option value="Wolverine">Wolverine</option>
-              <option value="Chaco">Chaco</option>
-              <option value="Sperry">Sperry</option>
-              <option value="Other">Other</option>
-            </select>
-          </label>
-          <label class="field">
-            <span>Photographer</span>
-            <input type="text" id="shootPhotographer" placeholder="Your name" />
-          </label>
-          <p class="field-note" id="queueNote">No photos staged yet.</p>
-          <button type="submit" class="btn btn-dark btn-block" id="publishBtn" disabled>Publish to portfolio</button>
-        </form>
-      </div>
-
-      <!-- Staging preview -->
-      <div class="staging" id="staging" hidden>
-        <div class="staging-head">
-          <h3>Staged photos <span id="stagingCount">(0)</span></h3>
-          <button class="link-btn" id="clearStaging" type="button">Clear all</button>
-        </div>
-        <div class="thumb-grid" id="stagingGrid"></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===================== PORTFOLIO ===================== -->
-  <section class="portfolio" id="portfolio">
-    <div class="container">
-      <div class="section-head row reveal">
-        <div>
-          <p class="eyebrow">Portfolio</p>
-          <h2>The photoshoot gallery</h2>
-        </div>
-        <div class="portfolio-controls">
-          <div class="portfolio-filters" id="portfolioFilters" role="tablist" aria-label="Filter by brand">
-            <button class="chip is-active" data-filter="all">All</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="gallery" id="gallery"></div>
-
-      <div class="empty-state" id="emptyState" hidden>
-        <div class="empty-art" aria-hidden="true"></div>
-        <h3>Your gallery is waiting.</h3>
-        <p>Published photoshoots show up here. Head up to <a href="#upload">Upload</a> to add your first set.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===================== BRANDS ===================== -->
-  <section class="brands" id="brands">
-    <div class="container">
-      <div class="section-head reveal"><p class="eyebrow">Our House</p><h2>Shooting for the brands you know.</h2></div>
-      <ul class="brand-row">
-        <li class="reveal">Merrell</li><li class="reveal" style="--d:.04s">Saucony</li><li class="reveal" style="--d:.08s">Sweaty Betty</li>
-        <li class="reveal" style="--d:.12s">Wolverine</li><li class="reveal" style="--d:.16s">Chaco</li><li class="reveal" style="--d:.2s">Sperry</li>
-        <li class="reveal" style="--d:.24s">Hush Puppies</li><li class="reveal" style="--d:.28s">Bates</li>
+  <!-- ============ Full-screen overlay nav ============ -->
+  <nav class="nav-overlay" id="navOverlay" aria-hidden="true">
+    <div class="nav-overlay-inner">
+      <ul class="nav-links">
+        <li><a href="#/" data-link><span class="nav-idx">01</span> Home</a></li>
+        <li><a href="#/work" data-link><span class="nav-idx">02</span> Work</a></li>
+        <li><a href="#/categories" data-link><span class="nav-idx">03</span> Categories</a></li>
+        <li><a href="#/studio" data-link><span class="nav-idx">04</span> Studio</a></li>
+        <li><a href="#/upload" data-link><span class="nav-idx">05</span> Upload</a></li>
       </ul>
+      <div class="nav-meta">
+        <div>
+          <p class="nav-meta-label">Studio</p>
+          <p>The Creative Studio of<br />Wolverine Worldwide</p>
+        </div>
+        <div>
+          <p class="nav-meta-label">Reach out</p>
+          <p><a href="mailto:studio@wolverine.example">studio@wolverine.example</a></p>
+          <p class="nav-social"><a href="#/" data-link>Instagram</a> · <a href="#/" data-link>Behance</a> · <a href="#/" data-link>LinkedIn</a></p>
+        </div>
+      </div>
     </div>
-  </section>
+  </nav>
 
-  <!-- ===================== FOOTER ===================== -->
+  <!-- ============ View mount ============ -->
+  <main id="view" class="view"></main>
+
+  <!-- ============ Footer ============ -->
   <footer class="site-footer">
     <div class="container footer-inner">
       <div class="footer-brand">
         <span class="brand-text">WOLVERINE<span class="brand-sub">PhotoStudio</span></span>
         <p>Together we will build a better portfolio from the ground up.</p>
       </div>
+      <nav class="footer-nav" aria-label="Footer">
+        <a href="#/" data-link>Home</a><a href="#/work" data-link>Work</a>
+        <a href="#/categories" data-link>Categories</a><a href="#/studio" data-link>Studio</a>
+        <a href="#/upload" data-link>Upload</a>
+      </nav>
       <div class="footer-meta">
         <p>A concept studio site · Not affiliated with Wolverine World Wide, Inc.</p>
         <p>© <span id="year"></span> · Crafted for the love of the shot.</p>
@@ -236,7 +87,7 @@
     </div>
   </footer>
 
-  <!-- Lightbox -->
+  <!-- ============ Lightbox ============ -->
   <div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Photo viewer">
     <button class="lightbox-close" id="lightboxClose" aria-label="Close viewer">×</button>
     <button class="lightbox-nav lb-prev" id="lbPrev" aria-label="Previous photo">‹</button>
@@ -248,6 +99,7 @@
     <span class="lightbox-counter" id="lbCounter"></span>
   </div>
 
+  <script src="data.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
